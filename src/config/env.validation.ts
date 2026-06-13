@@ -8,4 +8,9 @@ export const envValidationSchema = Joi.object({
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgres', 'postgresql'] })
     .required(),
+  JWT_ACCESS_TOKEN_SECRET: Joi.string().min(32).required(),
+  JWT_REFRESH_TOKEN_SECRET: Joi.string().min(32).required(),
+  JWT_ACCESS_TOKEN_TTL: Joi.string().default('15m'),
+  JWT_REFRESH_TOKEN_TTL: Joi.string().default('7d'),
+  BCRYPT_SALT_ROUNDS: Joi.number().integer().min(10).max(14).default(12),
 });

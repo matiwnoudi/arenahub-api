@@ -44,6 +44,49 @@ Suggested commit message:
 chore: initialize NestJS API with Prisma and Postgres
 ```
 
+## Day 2 Milestone
+
+Small task: add the authentication foundation with users, roles, password hashing, access tokens, refresh token storage, and auth endpoints.
+
+Files created or edited:
+
+- `.env.example`
+- `package.json`
+- `package-lock.json`
+- `prisma/schema.prisma`
+- `prisma/migrations/20260613000100_add_auth_foundation/migration.sql`
+- `src/app.module.ts`
+- `src/config/env.validation.ts`
+- `src/auth/auth.module.ts`
+- `src/auth/auth.controller.ts`
+- `src/auth/auth.service.ts`
+- `src/auth/auth.service.spec.ts`
+- `src/auth/dto/register.dto.ts`
+- `src/auth/dto/login.dto.ts`
+- `src/auth/dto/auth-response.dto.ts`
+- `src/auth/dto/refresh-token.dto.ts`
+- `src/auth/guards/jwt-auth.guard.ts`
+- `src/auth/strategies/jwt.strategy.ts`
+- `src/auth/types/jwt-payload.type.ts`
+- `README.md`
+
+Working at the end of Day 2:
+
+- `User` and `RefreshToken` models exist in Prisma.
+- Users can register and log in with hashed passwords.
+- Access and refresh tokens are generated with JWT.
+- Refresh tokens are stored as SHA-256 hashes.
+- Refreshing a token rotates the refresh token.
+- Logout revokes a stored refresh token.
+- `USER` and `ADMIN` roles are available.
+- Jest covers register and login service logic.
+
+Suggested commit message:
+
+```bash
+feat: add authentication foundation
+```
+
 ## Local Setup
 
 Prerequisites:
@@ -64,6 +107,8 @@ Create a local environment file:
 Copy-Item .env.example .env
 ```
 
+The Day 2 auth settings in `.env.example` are safe local placeholders. Use strong unique secrets outside local development.
+
 Start PostgreSQL:
 
 ```bash
@@ -74,6 +119,12 @@ Generate the Prisma client:
 
 ```bash
 npm run prisma:generate
+```
+
+Run database migrations:
+
+```bash
+npm run prisma:migrate -- --name add_auth_foundation
 ```
 
 Start the API in development mode:
@@ -99,12 +150,51 @@ Expected response shape:
 }
 ```
 
+## Authentication
+
+Register:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"player@example.com\",\"username\":\"ArenaPlayer\",\"password\":\"StrongPass123\"}"
+```
+
+Login:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"player@example.com\",\"password\":\"StrongPass123\"}"
+```
+
+Refresh:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d "{\"refreshToken\":\"paste-refresh-token-here\"}"
+```
+
+Logout:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -d "{\"refreshToken\":\"paste-refresh-token-here\"}"
+```
+
 ## Database
 
-The local PostgreSQL connection string is defined in `.env.example`:
+The local PostgreSQL and auth settings are defined in `.env.example`:
 
 ```env
 DATABASE_URL="postgresql://arenahub:arenahub_password@localhost:5432/arenahub?schema=public"
+JWT_ACCESS_TOKEN_SECRET="change-me-access-secret-for-local-dev-only"
+JWT_REFRESH_TOKEN_SECRET="change-me-refresh-secret-for-local-dev-only"
+JWT_ACCESS_TOKEN_TTL="15m"
+JWT_REFRESH_TOKEN_TTL="7d"
+BCRYPT_SALT_ROUNDS=12
 ```
 
 Docker Compose creates a local database named `arenahub` with the `arenahub` user.
@@ -116,7 +206,7 @@ npm run db:up
 npm run db:logs
 npm run db:down
 npm run prisma:generate
-npm run prisma:migrate -- --name init
+npm run prisma:migrate -- --name add_auth_foundation
 npm run prisma:studio
 ```
 
@@ -136,4 +226,6 @@ npm run build
 
 ## Current Scope
 
-Day 1 intentionally does not include auth, players, matches, Redis, leaderboards, matchmaking, achievements, seasons, admin features, WebSockets, or Swagger yet. Those will be added in later daily milestones.
+The current project includes the NestJS foundation, Prisma/PostgreSQL setup, a health endpoint, and the authentication foundation.
+
+Player profiles, matches, Redis, leaderboards, matchmaking, achievements, seasons, admin features, WebSockets, and Swagger are still intentionally out of scope. Those will be added in later daily milestones.
