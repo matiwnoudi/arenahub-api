@@ -87,6 +87,43 @@ Suggested commit message:
 feat: add authentication foundation
 ```
 
+## Day 3 Milestone
+
+Small task: add the player profile foundation on top of JWT auth.
+
+Files created or edited:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/20260702000100_add_player_profile_fields/migration.sql`
+- `package.json`
+- `package-lock.json`
+- `src/app.module.ts`
+- `src/common/decorators/current-user.decorator.ts`
+- `src/players/players.module.ts`
+- `src/players/players.controller.ts`
+- `src/players/players.service.ts`
+- `src/players/players.service.spec.ts`
+- `src/players/dto/player-profile.dto.ts`
+- `src/players/dto/update-profile.dto.ts`
+- `src/auth/auth.service.spec.ts`
+- `README.md`
+
+Working at the end of Day 3:
+
+- Player profile fields exist on `User`: avatar, level, XP, rank, wins, and losses.
+- `Rank` enum exists with `BRONZE`, `SILVER`, `GOLD`, `PLATINUM`, `DIAMOND`, and `MASTER`.
+- Authenticated users can view their own profile.
+- Authenticated users can update username, email, and avatar URL.
+- Duplicate email or username updates return a conflict error.
+- Jest covers profile read/update service logic.
+- Runtime dependency audit is kept clean with a patched `multer` override.
+
+Suggested commit message:
+
+```bash
+feat: add player profile foundation
+```
+
 ## Local Setup
 
 Prerequisites:
@@ -124,7 +161,7 @@ npm run prisma:generate
 Run database migrations:
 
 ```bash
-npm run prisma:migrate -- --name add_auth_foundation
+npm run prisma:migrate -- --name add_player_profile_fields
 ```
 
 Start the API in development mode:
@@ -184,6 +221,26 @@ curl -X POST http://localhost:3000/api/auth/logout \
   -d "{\"refreshToken\":\"paste-refresh-token-here\"}"
 ```
 
+## Player Profile
+
+Profile endpoints require a JWT access token from register or login.
+
+Get current profile:
+
+```bash
+curl http://localhost:3000/api/players/me \
+  -H "Authorization: Bearer paste-access-token-here"
+```
+
+Update current profile:
+
+```bash
+curl -X PATCH http://localhost:3000/api/players/me \
+  -H "Authorization: Bearer paste-access-token-here" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"ArenaHero\",\"avatar\":\"https://example.com/avatar.png\"}"
+```
+
 ## Database
 
 The local PostgreSQL and auth settings are defined in `.env.example`:
@@ -206,7 +263,7 @@ npm run db:up
 npm run db:logs
 npm run db:down
 npm run prisma:generate
-npm run prisma:migrate -- --name add_auth_foundation
+npm run prisma:migrate -- --name add_player_profile_fields
 npm run prisma:studio
 ```
 
@@ -226,6 +283,6 @@ npm run build
 
 ## Current Scope
 
-The current project includes the NestJS foundation, Prisma/PostgreSQL setup, a health endpoint, and the authentication foundation.
+The current project includes the NestJS foundation, Prisma/PostgreSQL setup, a health endpoint, authentication foundation, and player profile foundation.
 
-Player profiles, matches, Redis, leaderboards, matchmaking, achievements, seasons, admin features, WebSockets, and Swagger are still intentionally out of scope. Those will be added in later daily milestones.
+Matches, Redis, leaderboards, matchmaking, achievements, seasons, admin features, WebSockets, and Swagger are still intentionally out of scope. Those will be added in later daily milestones.

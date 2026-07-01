@@ -2,7 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Role, User } from '@prisma/client';
+import { Rank, Role, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -33,6 +33,12 @@ describe('AuthService', () => {
     username: 'ArenaPlayer',
     passwordHash: 'hashed-password',
     role: Role.USER,
+    avatar: null,
+    level: 1,
+    xp: 0,
+    rank: Rank.BRONZE,
+    wins: 0,
+    losses: 0,
     createdAt: new Date('2026-06-13T00:00:00.000Z'),
     updatedAt: new Date('2026-06-13T00:00:00.000Z'),
   };

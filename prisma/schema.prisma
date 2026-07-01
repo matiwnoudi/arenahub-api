@@ -12,17 +12,33 @@ enum Role {
   ADMIN
 }
 
+enum Rank {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+  MASTER
+}
+
 model User {
   id            String         @id @default(cuid())
   email         String         @unique
   username      String         @unique
   passwordHash  String
   role          Role           @default(USER)
+  avatar        String?
+  level         Int            @default(1)
+  xp            Int            @default(0)
+  rank          Rank           @default(BRONZE)
+  wins          Int            @default(0)
+  losses        Int            @default(0)
   refreshTokens RefreshToken[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   @@index([role])
+  @@index([rank])
 }
 
 model RefreshToken {
