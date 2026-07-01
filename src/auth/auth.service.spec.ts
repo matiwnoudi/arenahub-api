@@ -124,6 +124,15 @@ describe('AuthService', () => {
         expiresAt: expect.any(Date),
       },
     });
+    expect(jwtService.signAsync.mock.calls[0][0].jti).toEqual(
+      expect.any(String),
+    );
+    expect(jwtService.signAsync.mock.calls[1][0].jti).toEqual(
+      expect.any(String),
+    );
+    expect(jwtService.signAsync.mock.calls[0][0].jti).not.toBe(
+      jwtService.signAsync.mock.calls[1][0].jti,
+    );
     expect(result).toEqual({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
@@ -171,5 +180,54 @@ describe('AuthService', () => {
         password: 'wrong-password',
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('rotates a valid refresh token', async () => {
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      jti: 'old-refresh-token-id',
+    });
+    prisma.refreshToken.findUnique.mockResolvedValue({
+      id: 'stored-refresh-token',
+      tokenHash: 'stored-token-hash',
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      createdAt: new Date(),
+      user,
+    });
+    prisma.refreshToken.update.mockResolvedValue({
+      id: 'stored-refresh-token',
+      tokenHash: 'stored-token-hash',
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: new Date(),
+      createdAt: new Date(),
+    });
+    prisma.refreshToken.create.mockResolvedValue({
+      id: 'new-refresh-token',
+      tokenHash: 'new-token-hash',
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      createdAt: new Date(),
+    });
+
+    const result = await service.refresh('valid-refresh-token');
+
+    expect(prisma.refreshToken.update).toHaveBeenCalledWith({
+      where: { id: 'stored-refresh-token' },
+      data: { revokedAt: expect.any(Date) },
+    });
+    expect(prisma.refreshToken.create).toHaveBeenCalledWith({
+      data: {
+        tokenHash: expect.any(String),
+        userId: user.id,
+        expiresAt: expect.any(Date),
+      },
+    });
+    expect(result.refreshToken).toBe('refresh-token');
   });
 });

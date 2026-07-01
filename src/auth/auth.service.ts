@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
@@ -114,25 +114,31 @@ export class AuthService {
   }
 
   private async issueAuthResponse(user: User): Promise<AuthResponseDto> {
-    const payload: JwtPayload = {
+    const basePayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
     };
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.getOrThrow<string>(
-          'JWT_ACCESS_TOKEN_SECRET',
-        ),
-        expiresIn: this.getJwtDuration('JWT_ACCESS_TOKEN_TTL'),
-      }),
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.getOrThrow<string>(
-          'JWT_REFRESH_TOKEN_SECRET',
-        ),
-        expiresIn: this.getJwtDuration('JWT_REFRESH_TOKEN_TTL'),
-      }),
+      this.jwtService.signAsync(
+        { ...basePayload, jti: randomUUID() },
+        {
+          secret: this.configService.getOrThrow<string>(
+            'JWT_ACCESS_TOKEN_SECRET',
+          ),
+          expiresIn: this.getJwtDuration('JWT_ACCESS_TOKEN_TTL'),
+        },
+      ),
+      this.jwtService.signAsync(
+        { ...basePayload, jti: randomUUID() },
+        {
+          secret: this.configService.getOrThrow<string>(
+            'JWT_REFRESH_TOKEN_SECRET',
+          ),
+          expiresIn: this.getJwtDuration('JWT_REFRESH_TOKEN_TTL'),
+        },
+      ),
     ]);
 
     await this.prisma.refreshToken.create({
