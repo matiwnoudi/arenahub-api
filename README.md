@@ -157,6 +157,36 @@ Suggested commit message:
 feat: add match foundation
 ```
 
+## Day 5 Milestone
+
+Small task: add match result submission and match finishing.
+
+Files created or edited:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/20260702000300_add_match_results/migration.sql`
+- `src/matches/matches.controller.ts`
+- `src/matches/matches.service.ts`
+- `src/matches/matches.service.spec.ts`
+- `src/matches/dto/submit-match-result.dto.ts`
+- `src/matches/dto/match-result-response.dto.ts`
+- `README.md`
+
+Working at the end of Day 5:
+
+- `MatchResult` stores kills, deaths, assists, damage, score, winner flag, and suspicious metadata.
+- Match participants can submit or update their own result while the match is in progress.
+- Impossible values are rejected by DTO validation limits.
+- Suspicious values are accepted but flagged with reasons.
+- Match creators can finish a match after every participant has submitted a result and at least one winner is marked.
+- Jest covers result submission, suspicious flagging, and finish requirements.
+
+Suggested commit message:
+
+```bash
+feat: add match results foundation
+```
+
 ## Local Setup
 
 Prerequisites:
@@ -194,7 +224,7 @@ npm run prisma:generate
 Run database migrations:
 
 ```bash
-npm run prisma:migrate -- --name add_match_foundation
+npm run prisma:migrate -- --name add_match_results
 ```
 
 Start the API in development mode:
@@ -308,6 +338,22 @@ curl -X POST http://localhost:3000/api/matches/paste-match-id-here/start \
   -H "Authorization: Bearer paste-access-token-here"
 ```
 
+Submit your match result:
+
+```bash
+curl -X POST http://localhost:3000/api/matches/paste-match-id-here/results \
+  -H "Authorization: Bearer paste-access-token-here" \
+  -H "Content-Type: application/json" \
+  -d "{\"kills\":12,\"deaths\":2,\"assists\":4,\"damage\":3200,\"score\":9800,\"isWinner\":true}"
+```
+
+Finish a match:
+
+```bash
+curl -X POST http://localhost:3000/api/matches/paste-match-id-here/finish \
+  -H "Authorization: Bearer paste-access-token-here"
+```
+
 ## Database
 
 The local PostgreSQL and auth settings are defined in `.env.example`:
@@ -330,7 +376,7 @@ npm run db:up
 npm run db:logs
 npm run db:down
 npm run prisma:generate
-npm run prisma:migrate -- --name add_match_foundation
+npm run prisma:migrate -- --name add_match_results
 npm run prisma:studio
 ```
 
@@ -350,6 +396,6 @@ npm run build
 
 ## Current Scope
 
-The current project includes the NestJS foundation, Prisma/PostgreSQL setup, a health endpoint, authentication foundation, player profile foundation, and match foundation.
+The current project includes the NestJS foundation, Prisma/PostgreSQL setup, a health endpoint, authentication foundation, player profile foundation, match foundation, and match results foundation.
 
-Match results, Redis, leaderboards, matchmaking, achievements, seasons, admin features, WebSockets, and Swagger are still intentionally out of scope. Those will be added in later daily milestones.
+XP/rank updates, Redis, leaderboards, matchmaking, achievements, seasons, admin features, WebSockets, and Swagger are still intentionally out of scope. Those will be added in later daily milestones.

@@ -4,7 +4,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateMatchDto } from './dto/create-match.dto';
+import { MatchResultResponseDto } from './dto/match-result-response.dto';
 import { MatchResponseDto } from './dto/match-response.dto';
+import { SubmitMatchResultDto } from './dto/submit-match-result.dto';
 import { MatchesService } from './matches.service';
 
 @Controller('matches')
@@ -39,5 +41,26 @@ export class MatchesController {
     @Param('matchId') matchId: string,
   ): Promise<MatchResponseDto> {
     return this.matchesService.startMatch(user.sub, matchId);
+  }
+
+  @Post(':matchId/results')
+  submitResult(
+    @CurrentUser() user: JwtPayload,
+    @Param('matchId') matchId: string,
+    @Body() submitMatchResultDto: SubmitMatchResultDto,
+  ): Promise<MatchResultResponseDto> {
+    return this.matchesService.submitResult(
+      user.sub,
+      matchId,
+      submitMatchResultDto,
+    );
+  }
+
+  @Post(':matchId/finish')
+  finish(
+    @CurrentUser() user: JwtPayload,
+    @Param('matchId') matchId: string,
+  ): Promise<MatchResponseDto> {
+    return this.matchesService.finishMatch(user.sub, matchId);
   }
 }

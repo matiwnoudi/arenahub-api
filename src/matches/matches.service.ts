@@ -5,11 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MatchMode, MatchStatus, Prisma } from '@prisma/client';
+import { MatchMode, MatchResult, MatchStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMatchDto } from './dto/create-match.dto';
+import { MatchResultResponseDto } from './dto/match-result-response.dto';
 import { MatchResponseDto } from './dto/match-response.dto';
+import { SubmitMatchResultDto } from './dto/submit-match-result.dto';
 
 const matchInclude = {
   participants: {
@@ -27,6 +29,11 @@ const matchInclude = {
 type MatchWithParticipants = Prisma.MatchGetPayload<{
   include: typeof matchInclude;
 }>;
+
+const matchResultsInclude = {
+  participants: true,
+  results: true,
+} satisfies Prisma.MatchInclude;
 
 @Injectable()
 export class MatchesService {
@@ -140,6 +147,117 @@ export class MatchesService {
     return this.toMatchResponse(updatedMatch);
   }
 
+  async submitResult(
+    userId: string,
+    matchId: string,
+    submitMatchResultDto: SubmitMatchResultDto,
+  ): Promise<MatchResultResponseDto> {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      include: matchResultsInclude,
+    });
+
+    if (!match) {
+      throw new NotFoundException('Match not found');
+    }
+
+    if (match.status !== MatchStatus.IN_PROGRESS) {
+      throw new BadRequestException(
+        'Results can only be submitted for in-progress matches',
+      );
+    }
+
+    const participant = match.participants.find(
+      (matchParticipant) => matchParticipant.userId === userId,
+    );
+
+    if (!participant) {
+      throw new ForbiddenException('Only match participants can submit results');
+    }
+
+    const suspiciousReasons =
+      this.getSuspiciousReasons(submitMatchResultDto);
+    const result = await this.prisma.matchResult.upsert({
+      where: { participantId: participant.id },
+      create: {
+        matchId,
+        participantId: participant.id,
+        userId,
+        kills: submitMatchResultDto.kills,
+        deaths: submitMatchResultDto.deaths,
+        assists: submitMatchResultDto.assists,
+        damage: submitMatchResultDto.damage,
+        score: submitMatchResultDto.score,
+        isWinner: submitMatchResultDto.isWinner ?? false,
+        suspicious: suspiciousReasons.length > 0,
+        suspiciousReasons,
+      },
+      update: {
+        kills: submitMatchResultDto.kills,
+        deaths: submitMatchResultDto.deaths,
+        assists: submitMatchResultDto.assists,
+        damage: submitMatchResultDto.damage,
+        score: submitMatchResultDto.score,
+        isWinner: submitMatchResultDto.isWinner ?? false,
+        suspicious: suspiciousReasons.length > 0,
+        suspiciousReasons,
+      },
+    });
+
+    return this.toMatchResultResponse(result);
+  }
+
+  async finishMatch(userId: string, matchId: string): Promise<MatchResponseDto> {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      include: matchResultsInclude,
+    });
+
+    if (!match) {
+      throw new NotFoundException('Match not found');
+    }
+
+    if (match.createdById !== userId) {
+      throw new ForbiddenException('Only the match creator can finish the match');
+    }
+
+    if (match.status !== MatchStatus.IN_PROGRESS) {
+      throw new BadRequestException(
+        'Only in-progress matches can be finished',
+      );
+    }
+
+    const submittedUserIds = new Set(
+      match.results.map((result) => result.userId),
+    );
+    const missingResult = match.participants.some(
+      (participant) => !submittedUserIds.has(participant.userId),
+    );
+
+    if (missingResult) {
+      throw new BadRequestException(
+        'All participants must submit results before finishing',
+      );
+    }
+
+    if (!match.results.some((result) => result.isWinner)) {
+      throw new BadRequestException(
+        'At least one submitted result must mark a winner',
+      );
+    }
+
+    const updatedMatch = await this.prisma.match.update({
+      where: { id: matchId },
+      data: {
+        status: MatchStatus.FINISHED,
+        finishedAt: new Date(),
+      },
+      include: matchInclude,
+    });
+
+    return this.toMatchResponse(updatedMatch);
+  }
+
   private getMaxPlayers(mode: MatchMode): number {
     const maxPlayersByMode: Record<MatchMode, number> = {
       [MatchMode.DUEL]: 2,
@@ -178,6 +296,56 @@ export class MatchesService {
       createdAt: match.createdAt,
       updatedAt: match.updatedAt,
     };
+  }
+
+  private toMatchResultResponse(result: MatchResult): MatchResultResponseDto {
+    return {
+      id: result.id,
+      matchId: result.matchId,
+      userId: result.userId,
+      kills: result.kills,
+      deaths: result.deaths,
+      assists: result.assists,
+      damage: result.damage,
+      score: result.score,
+      isWinner: result.isWinner,
+      suspicious: result.suspicious,
+      suspiciousReasons: result.suspiciousReasons,
+      submittedAt: result.submittedAt,
+      updatedAt: result.updatedAt,
+    };
+  }
+
+  private getSuspiciousReasons(
+    submitMatchResultDto: SubmitMatchResultDto,
+  ): string[] {
+    const reasons: string[] = [];
+
+    if (submitMatchResultDto.kills > 60) {
+      reasons.push('Kills are unusually high');
+    }
+
+    if (submitMatchResultDto.deaths > 80) {
+      reasons.push('Deaths are unusually high');
+    }
+
+    if (submitMatchResultDto.damage > 100000) {
+      reasons.push('Damage is unusually high');
+    }
+
+    if (submitMatchResultDto.score > 250000) {
+      reasons.push('Score is unusually high');
+    }
+
+    if (submitMatchResultDto.kills > 0 && submitMatchResultDto.damage === 0) {
+      reasons.push('Kills with zero damage is suspicious');
+    }
+
+    if (submitMatchResultDto.kills >= 40 && submitMatchResultDto.deaths === 0) {
+      reasons.push('High kills with zero deaths is suspicious');
+    }
+
+    return reasons;
   }
 
   private isUniqueConstraintError(error: unknown): boolean {

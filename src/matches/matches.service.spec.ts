@@ -20,6 +20,9 @@ describe('MatchesService', () => {
     matchParticipant: {
       create: jest.Mock;
     };
+    matchResult: {
+      upsert: jest.Mock;
+    };
   };
 
   const now = new Date('2026-07-02T00:00:00.000Z');
@@ -63,6 +66,9 @@ describe('MatchesService', () => {
       },
       matchParticipant: {
         create: jest.fn(),
+      },
+      matchResult: {
+        upsert: jest.fn(),
       },
     };
 
@@ -175,5 +181,185 @@ describe('MatchesService', () => {
     await expect(service.startMatch('player-2', 'match-1')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+
+  it('submits a match result for a participant', async () => {
+    prisma.match.findUnique.mockResolvedValue({
+      ...waitingDuel,
+      status: MatchStatus.IN_PROGRESS,
+      participants: [creatorParticipant, joinedParticipant],
+      results: [],
+    });
+    prisma.matchResult.upsert.mockResolvedValue({
+      id: 'result-1',
+      matchId: 'match-1',
+      participantId: 'participant-1',
+      userId: 'creator-1',
+      kills: 12,
+      deaths: 2,
+      assists: 4,
+      damage: 3200,
+      score: 9800,
+      isWinner: true,
+      suspicious: false,
+      suspiciousReasons: [],
+      submittedAt: now,
+      updatedAt: now,
+    });
+
+    const result = await service.submitResult('creator-1', 'match-1', {
+      kills: 12,
+      deaths: 2,
+      assists: 4,
+      damage: 3200,
+      score: 9800,
+      isWinner: true,
+    });
+
+    expect(prisma.matchResult.upsert).toHaveBeenCalledWith({
+      where: { participantId: 'participant-1' },
+      create: expect.objectContaining({
+        matchId: 'match-1',
+        participantId: 'participant-1',
+        userId: 'creator-1',
+        suspicious: false,
+        suspiciousReasons: [],
+      }),
+      update: expect.objectContaining({
+        kills: 12,
+        suspicious: false,
+        suspiciousReasons: [],
+      }),
+    });
+    expect(result.isWinner).toBe(true);
+    expect(result.suspicious).toBe(false);
+  });
+
+  it('flags suspicious match result values without rejecting them', async () => {
+    prisma.match.findUnique.mockResolvedValue({
+      ...waitingDuel,
+      status: MatchStatus.IN_PROGRESS,
+      participants: [creatorParticipant, joinedParticipant],
+      results: [],
+    });
+    prisma.matchResult.upsert.mockResolvedValue({
+      id: 'result-1',
+      matchId: 'match-1',
+      participantId: 'participant-1',
+      userId: 'creator-1',
+      kills: 80,
+      deaths: 0,
+      assists: 4,
+      damage: 0,
+      score: 300000,
+      isWinner: true,
+      suspicious: true,
+      suspiciousReasons: [
+        'Kills are unusually high',
+        'Score is unusually high',
+        'Kills with zero damage is suspicious',
+        'High kills with zero deaths is suspicious',
+      ],
+      submittedAt: now,
+      updatedAt: now,
+    });
+
+    const result = await service.submitResult('creator-1', 'match-1', {
+      kills: 80,
+      deaths: 0,
+      assists: 4,
+      damage: 0,
+      score: 300000,
+      isWinner: true,
+    });
+
+    expect(prisma.matchResult.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          suspicious: true,
+          suspiciousReasons: expect.arrayContaining([
+            'Kills are unusually high',
+            'Kills with zero damage is suspicious',
+          ]),
+        }),
+      }),
+    );
+    expect(result.suspicious).toBe(true);
+  });
+
+  it('prevents non-participants from submitting results', async () => {
+    prisma.match.findUnique.mockResolvedValue({
+      ...waitingDuel,
+      status: MatchStatus.IN_PROGRESS,
+      participants: [creatorParticipant],
+      results: [],
+    });
+
+    await expect(
+      service.submitResult('player-2', 'match-1', {
+        kills: 1,
+        deaths: 1,
+        assists: 0,
+        damage: 100,
+        score: 500,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('requires all participant results before finishing', async () => {
+    prisma.match.findUnique.mockResolvedValue({
+      ...waitingDuel,
+      status: MatchStatus.IN_PROGRESS,
+      participants: [creatorParticipant, joinedParticipant],
+      results: [
+        {
+          id: 'result-1',
+          userId: 'creator-1',
+          isWinner: true,
+        },
+      ],
+    });
+
+    await expect(service.finishMatch('creator-1', 'match-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('finishes a match after all results are submitted', async () => {
+    prisma.match.findUnique.mockResolvedValue({
+      ...waitingDuel,
+      status: MatchStatus.IN_PROGRESS,
+      participants: [creatorParticipant, joinedParticipant],
+      results: [
+        {
+          id: 'result-1',
+          userId: 'creator-1',
+          isWinner: true,
+        },
+        {
+          id: 'result-2',
+          userId: 'player-2',
+          isWinner: false,
+        },
+      ],
+    });
+    prisma.match.update.mockResolvedValue({
+      ...waitingDuel,
+      status: MatchStatus.FINISHED,
+      finishedAt: now,
+      participants: [creatorParticipant, joinedParticipant],
+    });
+
+    const result = await service.finishMatch('creator-1', 'match-1');
+
+    expect(prisma.match.update).toHaveBeenCalledWith({
+      where: { id: 'match-1' },
+      data: {
+        status: MatchStatus.FINISHED,
+        finishedAt: expect.any(Date),
+      },
+      include: expect.any(Object),
+    });
+    expect(result.status).toBe(MatchStatus.FINISHED);
   });
 });

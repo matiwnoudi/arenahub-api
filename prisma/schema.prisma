@@ -49,6 +49,7 @@ model User {
   refreshTokens     RefreshToken[]
   createdMatches    Match[]            @relation("CreatedMatches")
   matchParticipants MatchParticipant[]
+  matchResults      MatchResult[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -77,6 +78,7 @@ model Match {
   createdById  String
   createdBy    User               @relation("CreatedMatches", fields: [createdById], references: [id], onDelete: Cascade)
   participants MatchParticipant[]
+  results      MatchResult[]
   startedAt    DateTime?
   finishedAt   DateTime?
   createdAt    DateTime           @default(now())
@@ -88,13 +90,39 @@ model Match {
 }
 
 model MatchParticipant {
-  id       String   @id @default(cuid())
+  id       String       @id @default(cuid())
   matchId  String
   userId   String
-  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  joinedAt DateTime @default(now())
+  match    Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  result   MatchResult?
+  joinedAt DateTime     @default(now())
 
   @@unique([matchId, userId])
   @@index([userId])
+}
+
+model MatchResult {
+  id                String           @id @default(cuid())
+  matchId           String
+  participantId     String           @unique
+  userId            String
+  kills             Int
+  deaths            Int
+  assists           Int
+  damage            Int
+  score             Int
+  isWinner          Boolean          @default(false)
+  suspicious        Boolean          @default(false)
+  suspiciousReasons String[]         @default([])
+  match             Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  participant       MatchParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submittedAt       DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([matchId, userId])
+  @@index([matchId])
+  @@index([userId])
+  @@index([suspicious])
 }
