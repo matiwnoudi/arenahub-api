@@ -124,6 +124,39 @@ Suggested commit message:
 feat: add player profile foundation
 ```
 
+## Day 4 Milestone
+
+Small task: add the match foundation with authenticated create, join, view, and start workflows.
+
+Files created or edited:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/20260702000200_add_match_foundation/migration.sql`
+- `src/app.module.ts`
+- `src/matches/matches.module.ts`
+- `src/matches/matches.controller.ts`
+- `src/matches/matches.service.ts`
+- `src/matches/matches.service.spec.ts`
+- `src/matches/dto/create-match.dto.ts`
+- `src/matches/dto/match-response.dto.ts`
+- `README.md`
+
+Working at the end of Day 4:
+
+- `MatchMode` enum exists with `DUEL`, `TEAM_2V2`, and `FREE_FOR_ALL`.
+- `MatchStatus` enum starts with `WAITING`, `IN_PROGRESS`, `FINISHED`, and `CANCELLED`.
+- Authenticated users can create a match and become the first participant.
+- Authenticated users can join waiting matches.
+- Match creators can start matches when enough players have joined.
+- Duplicate joins, full matches, and unauthorized starts are handled cleanly.
+- Jest covers core match create/join/start service logic.
+
+Suggested commit message:
+
+```bash
+feat: add match foundation
+```
+
 ## Local Setup
 
 Prerequisites:
@@ -161,7 +194,7 @@ npm run prisma:generate
 Run database migrations:
 
 ```bash
-npm run prisma:migrate -- --name add_player_profile_fields
+npm run prisma:migrate -- --name add_match_foundation
 ```
 
 Start the API in development mode:
@@ -241,6 +274,40 @@ curl -X PATCH http://localhost:3000/api/players/me \
   -d "{\"username\":\"ArenaHero\",\"avatar\":\"https://example.com/avatar.png\"}"
 ```
 
+## Matches
+
+Match endpoints require a JWT access token from register or login.
+
+Create a duel:
+
+```bash
+curl -X POST http://localhost:3000/api/matches \
+  -H "Authorization: Bearer paste-access-token-here" \
+  -H "Content-Type: application/json" \
+  -d "{\"mode\":\"DUEL\"}"
+```
+
+View a match:
+
+```bash
+curl http://localhost:3000/api/matches/paste-match-id-here \
+  -H "Authorization: Bearer paste-access-token-here"
+```
+
+Join a match:
+
+```bash
+curl -X POST http://localhost:3000/api/matches/paste-match-id-here/join \
+  -H "Authorization: Bearer paste-access-token-here"
+```
+
+Start a match:
+
+```bash
+curl -X POST http://localhost:3000/api/matches/paste-match-id-here/start \
+  -H "Authorization: Bearer paste-access-token-here"
+```
+
 ## Database
 
 The local PostgreSQL and auth settings are defined in `.env.example`:
@@ -263,7 +330,7 @@ npm run db:up
 npm run db:logs
 npm run db:down
 npm run prisma:generate
-npm run prisma:migrate -- --name add_player_profile_fields
+npm run prisma:migrate -- --name add_match_foundation
 npm run prisma:studio
 ```
 
@@ -283,6 +350,6 @@ npm run build
 
 ## Current Scope
 
-The current project includes the NestJS foundation, Prisma/PostgreSQL setup, a health endpoint, authentication foundation, and player profile foundation.
+The current project includes the NestJS foundation, Prisma/PostgreSQL setup, a health endpoint, authentication foundation, player profile foundation, and match foundation.
 
-Matches, Redis, leaderboards, matchmaking, achievements, seasons, admin features, WebSockets, and Swagger are still intentionally out of scope. Those will be added in later daily milestones.
+Match results, Redis, leaderboards, matchmaking, achievements, seasons, admin features, WebSockets, and Swagger are still intentionally out of scope. Those will be added in later daily milestones.

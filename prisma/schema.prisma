@@ -21,21 +21,36 @@ enum Rank {
   MASTER
 }
 
+enum MatchMode {
+  DUEL
+  TEAM_2V2
+  FREE_FOR_ALL
+}
+
+enum MatchStatus {
+  WAITING
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  username      String         @unique
-  passwordHash  String
-  role          Role           @default(USER)
-  avatar        String?
-  level         Int            @default(1)
-  xp            Int            @default(0)
-  rank          Rank           @default(BRONZE)
-  wins          Int            @default(0)
-  losses        Int            @default(0)
-  refreshTokens RefreshToken[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                String             @id @default(cuid())
+  email             String             @unique
+  username          String             @unique
+  passwordHash      String
+  role              Role               @default(USER)
+  avatar            String?
+  level             Int                @default(1)
+  xp                Int                @default(0)
+  rank              Rank               @default(BRONZE)
+  wins              Int                @default(0)
+  losses            Int                @default(0)
+  refreshTokens     RefreshToken[]
+  createdMatches    Match[]            @relation("CreatedMatches")
+  matchParticipants MatchParticipant[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([role])
   @@index([rank])
@@ -52,4 +67,34 @@ model RefreshToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model Match {
+  id           String             @id @default(cuid())
+  mode         MatchMode
+  status       MatchStatus        @default(WAITING)
+  maxPlayers   Int
+  createdById  String
+  createdBy    User               @relation("CreatedMatches", fields: [createdById], references: [id], onDelete: Cascade)
+  participants MatchParticipant[]
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([createdById])
+  @@index([mode])
+  @@index([status])
+}
+
+model MatchParticipant {
+  id       String   @id @default(cuid())
+  matchId  String
+  userId   String
+  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([matchId, userId])
+  @@index([userId])
 }
